@@ -1,0 +1,154 @@
+#!/usr/bin/env python
+
+import glob
+import subprocess
+import sys
+
+Import('env')
+
+# The main source files of our Slicer plugin. We could also
+# do a Glob to get cpp files automatically but for now we'll
+# use an opt-in process just to have better control over what goes
+# into the final binary during development
+sources = [
+    "register_types.cpp",
+    "slicer.cpp",
+    "sliced_mesh.cpp",
+    "utils/slicer_face.cpp",
+    "utils/intersector.cpp",
+    "utils/triangulator.cpp"
+]
+
+# Linking the final Godot binaries can take a bit of time. Based on advice
+# from https://docs.godotengine.org/en/stable/development/cpp/custom_modules_in_cpp.html
+# we instead put our main (most often changed) logic into a shared library. This allows
+# us to build the main binaries once and link them against quicker to build artifacts dynamically
+use_shared_libs = ARGUMENTS.get('slicer_shared', 'no') == 'yes'
+
+# A simple SCons Action that runs the freshly built target
+# (It's very likely SCons already has something like this but
+# I couldn't find it)
+def run_target(target, source, env):
+    return subprocess.call(target[0].abspath)
+
+# Our unit tests make use of the OS_Server class (which is Unix only)
+# for bootstraping the Godot environment before tests. This is essentially
+# just copy-and-pasted from `platform/server/SCsub` and runs a high risk of
+# getting out of sync.
+def os_server_sources():
+    common_server = [\
+        "#platform/server/os_server.cpp",\
+    ]
+
+    if sys.platform == "darwin":
+        common_server.append("#platform/osx/crash_handler_osx.mm")
+        common_server.append("#platform/osx/power_osx.cpp")
+        common_server.append("#platform/osx/semaphore_osx.cpp")
+    else:
+        common_server.append("#platform/x11/crash_handler_x11.cpp")
+        common_server.append("#platform/x11/power_x11.cpp")
+
+    # If you look in `drivers/SCsub` you'll see that these dummy drivers are
+    # only compiled if you're specifically building against the `server` platform.
+    # We still want users to be able to build against their regular hostmachine
+    # platform (osx, x11) rather than have to remember that minutia so we just
+    # throw in those dummy drivers ourselves.
+    common_server += glob.glob('../../drivers/dummy/**/*.cpp', recursive=True)
+
+    return common_server
+
+# Godot does not currently have much in the way of unit testing the engine
+# code itself and this might be an interesting opportunity what that process
+# might look like to those it behooves.
+#
+# We use Catch2 (https://github.com/catchorg/Catch2) as our test framework.
+# This function simply configures a new executable build for a binary that
+# will run our test suite.
+def configure_unit_tests():
+    # Source files that are necessary for the actual executable binary
+    test_main_files = ['tests/main.cpp'] + os_server_sources()
+
+    # Source files of our tests suite
+    test_files = glob.glob('tests/**/*.test.cpp', recursive=True)
+
+    test_program = None
+
+    
+
+    # Ideally, rebuilding our test suite would be as quick as possible; but as
+    # mentioned above, linking all of Godot's main sources and libraries can
+    # take a while even if you're only compiling one or two files. To help
+    # mitigate that let's try to separate the building of the Catch2 main
+    # function (which should not be changing very often) and the building of
+    # the test suite itself (which we imagine _will_ be changing often).
+    if use_shared_libs:
+        test_env = env.Clone()
+        test_env.Append(CCFLAGS=['-fPIC'])
+        test_env['LIBS'] = []
+        test_lib = test_env.SharedLibrary(target='#bin/slicer-test-suite', source=test_files)
+        test_env.Alias('slicer-test-shared', [test_lib])
+
+        # Catch2's test auto registering functionality doesn't work very well with linked
+        # libraries (https://github.com/catchorg/Catch2/issues/421), as the linker will
+        # try to strip out what it thinks are unused symbols. So we need to pass in some
+        # additional flags to ask the linker to not do that
+        if sys.platform == "darwin":
+            test_env.Append(LINKFLAGS=['-Wl,-undefined,dynamic_lookup'])
+            env.Append(LINKFLAGS=['-Wl,-force_load', test_lib[0].abspath])
+        else:
+            # This has not been tested on a GNU/linux compiler but this _should_
+            # be the equivelant as the above `force_load`
+            env.Append(LINKFLAGS=['-Wl,--whole-archive', test_lib[0].abspath, '-Wl,--no-whole-archive'])
+
+        # TODO - Can we put this into the program function args somehow so we're not affecting
+        # regular build?
+        env.Append(LIBS=[test_lib])
+
+        test_program = env.Program('#bin/test-slicer', test_main_files)
+    else:
+        # As you can tell, there's a bit of finickiness with getting a shared library build
+        # working, so we add a more straightforward static build option just in case
+        test_program = env.Program('#bin/test-slicer', test_main_files + test_files)
+
+    env.Alias('slicer-test', [test_program])
+
+    # Useful so we can more easily attach an IDE's debugger to the build process
+    if ARGUMENTS.get('skip_running_tests', 'no') == 'no':
+        # Passing in a function to `AddPostAction` is slightly more preferrable
+        # to just passing in test[0].abspath, as the latter runs the risk
+        # of causing cyclical dependency issues if you start playing around
+        # with the `skip_running_tests` flag. Using a function as an
+        # intermediary is essentially just a hack to keep SCons from trying
+        # to make the test binary a dependency of itself.
+        env.AddPostAction(test_program, run_target)
+
+module_env = env.Clone()
+module_env.Append(CXXFLAGS=['-std=c++11'])
+
+# Build the plugin as a shared library for faster builds
+def configure_shared_lib_build():
+    module_env.Append(CCFLAGS=['-fPIC'])
+
+    if sys.platform == "darwin":
+        # OSX doesn't like all of the undefined symbol references when building
+        # a dynamic library so we need to tell the linker to ignore them
+        module_env.Append(LINKFLAGS=['-Wl,-undefined,dynamic_lookup'])
+
+    module_env['LIBS'] = []
+    shared_lib = module_env.SharedLibrary(target='#bin/slicer', source=sources)
+    module_env.Alias('slicer-shared', [shared_lib])
+    env.Append(LIBS=[shared_lib])
+    env.Append(LIBPATH=['#bin'])
+
+# Build the plugin statically for more reliable builds
+def configure_static_build():
+    module_env.Append(CCFLAGS=['-O2'])
+    module_env.add_source_files(env.modules_sources, sources)
+
+if ARGUMENTS.get('slicer_tests', 'no') == 'yes':
+    configure_unit_tests()
+
+if use_shared_libs:
+    configure_shared_lib_build()
+else:
+    configure_static_build()
