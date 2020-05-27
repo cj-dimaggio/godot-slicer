@@ -52,14 +52,23 @@ Ref<SlicedMesh> Slicer::slice_by_plane(const Ref<Mesh> mesh, const Plane plane, 
     return Ref<SlicedMesh>(sliced_mesh);
 }
 
-Ref<SlicedMesh> Slicer::slice(const Ref<Mesh> mesh, const Vector3 position, const Vector3 normal, const Ref<Material> cross_section_material) {
+Ref<SlicedMesh> Slicer::slice_mesh(const Ref<Mesh> mesh, const Vector3 position, const Vector3 normal, const Ref<Material> cross_section_material) {
     Plane plane(normal, normal.dot(position));
     return slice_by_plane(mesh, plane, cross_section_material);
 }
 
+Ref<SlicedMesh> Slicer::slice(const Ref<Mesh> mesh, const Transform mesh_transform, const Vector3 position, const Vector3 normal, const Ref<Material> cross_section_material) {
+    Vector3 origin = position - mesh_transform.origin;
+    real_t dist = normal.dot(origin);
+    Vector3 adjusted_normal = mesh_transform.basis.xform_inv(normal);
+
+    return slice_by_plane(mesh, Plane(adjusted_normal, dist), cross_section_material);
+}
+
 void Slicer::_bind_methods() {
     ClassDB::bind_method(D_METHOD("slice_by_plane", "mesh", "plane", "cross_section_material"), &Slicer::slice_by_plane, Variant::NIL);
-    ClassDB::bind_method(D_METHOD("slice", "mesh", "position", "normal", "cross_section_material"), &Slicer::slice, Variant::NIL);
+    ClassDB::bind_method(D_METHOD("slice_mesh", "mesh", "position", "normal", "cross_section_material"), &Slicer::slice_mesh, Variant::NIL);
+    ClassDB::bind_method(D_METHOD("slice", "mesh_instance", "mesh_transform", "position", "normal", "cross_section_material"), &Slicer::slice, Variant::NIL);
 }
 
 Slicer::Slicer() {
