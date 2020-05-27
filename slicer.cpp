@@ -3,7 +3,7 @@
 #include "utils/intersector.h"
 #include "utils/triangulator.h"
 
-Ref<SlicedMesh> Slicer::slice(const Ref<Mesh> mesh, const Plane plane, const Ref<Material> cross_section_material) {
+Ref<SlicedMesh> Slicer::slice_by_plane(const Ref<Mesh> mesh, const Plane plane, const Ref<Material> cross_section_material) {
     if (mesh.is_null()) {
         return Ref<SlicedMesh>();
     }
@@ -52,8 +52,14 @@ Ref<SlicedMesh> Slicer::slice(const Ref<Mesh> mesh, const Plane plane, const Ref
     return Ref<SlicedMesh>(sliced_mesh);
 }
 
+Ref<SlicedMesh> Slicer::slice(const Ref<Mesh> mesh, const Vector3 position, const Vector3 normal, const Ref<Material> cross_section_material) {
+    Plane plane(normal, normal.dot(position));
+    return slice_by_plane(mesh, plane, cross_section_material);
+}
+
 void Slicer::_bind_methods() {
-    ClassDB::bind_method(D_METHOD("slice", "mesh", "plane", "cross_section_material"), &Slicer::slice, Variant::NIL);
+    ClassDB::bind_method(D_METHOD("slice_by_plane", "mesh", "plane", "cross_section_material"), &Slicer::slice_by_plane, Variant::NIL);
+    ClassDB::bind_method(D_METHOD("slice", "mesh", "position", "normal", "cross_section_material"), &Slicer::slice, Variant::NIL);
 }
 
 Slicer::Slicer() {

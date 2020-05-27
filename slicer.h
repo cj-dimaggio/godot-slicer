@@ -11,7 +11,8 @@ protected:
     static void _bind_methods();
 
 public:
-    Ref<SlicedMesh> slice(const Ref<Mesh> mesh, const Plane plane, const Ref<Material> cross_section_material);
+    Ref<SlicedMesh> slice_by_plane(const Ref<Mesh> mesh, const Plane plane, const Ref<Material> cross_section_material);
+    Ref<SlicedMesh> slice(const Ref<Mesh> mesh, const Vector3 position, const Vector3 normal, const Ref<Material> cross_section_material);
     Slicer();
 };
 
