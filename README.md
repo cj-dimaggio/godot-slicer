@@ -47,6 +47,8 @@ func cut(plane_origin: Vector3, plane_normal: Vector3):
         print("Instantiate the lower cut mesh somewhere")
 ```
 
+An example project can also be found at: https://github.com/cj-dimaggio/godot-slicer
+
 
 ## Development
 For development purposes, Slicer can be built as a dynamic library by passing in the `slicer_shared=no` option to SCons and using the `slicer-shared` build alias, such as:
