@@ -121,11 +121,11 @@ namespace Intersector {
         if (info.num_of_points_on == 1) {
             if (info.num_of_points_above == 2) {
                 result.upper_faces.push_back(face);
+                return true;
             } else if (info.num_of_points_below == 2) {
                 result.lower_faces.push_back(face);
+                return true;
             }
-
-            return true;
         }
 
         return false;
@@ -138,7 +138,7 @@ namespace Intersector {
             Vector3 on = info.points_on[0];
 
             // We know that there is one on either side or else it would have been caught in `pointed_away`
-            ERR_FAIL_COND_V(info.num_of_points_above == 1 && info.num_of_points_below == 1, false);
+            ERR_FAIL_COND_V(info.num_of_points_above != 1 || info.num_of_points_below != 1, false);
             Vector3 above = info.points_above[0];
             Vector3 below = info.points_below[0];
 
@@ -225,7 +225,7 @@ namespace Intersector {
         // clockwise or else it won't render correctly. I'd love some way of generalizing this
         // to be less redundent
         if (on_lone_side == a) {
-            lone_tri = face.sub_face(a, intersection_point_1,intersection_point_2);
+            lone_tri = face.sub_face(a, intersection_point_1, intersection_point_2);
             same_tri_1 = face.sub_face(b, intersection_point_2, intersection_point_1);
             same_tri_2 = face.sub_face(c, intersection_point_2, b);
         } else if (on_lone_side == b) {
@@ -233,7 +233,7 @@ namespace Intersector {
             same_tri_1 = face.sub_face(c, intersection_point_1, intersection_point_2);
             same_tri_2 = face.sub_face(a, intersection_point_1, c);
         } else {
-            lone_tri = face.sub_face(c, intersection_point_1,intersection_point_2);
+            lone_tri = face.sub_face(c, intersection_point_1, intersection_point_2);
             same_tri_1 = face.sub_face(a, intersection_point_2, intersection_point_1);
             same_tri_2 = face.sub_face(b, intersection_point_2, a);
         }
@@ -256,6 +256,9 @@ namespace Intersector {
     // Face3 has its own split_by_plane but we need to make a few modifications to support
     // all the data that SlicerFace is responsible for holding. Also Ezy-Slice uses a few clever
     // tricks to handle edge cases
+    //
+    // Having result passed in and filled out by reference should hopefully allow us to reuse
+    // the same one over a series of faces
     void split_face_by_plane(const Plane &plane, const SlicerFace &face, SplitResult &result) {
         FaceIntersectInfo info(plane, face);
 

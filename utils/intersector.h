@@ -45,12 +45,6 @@ namespace Intersector {
      * Performs an intersection on the given face using the passed in plane and stores
      * the result in the result param.
     */
-   // TODO - We followed Ezy-Slice's lead with making result a passed in a reference we modify.
-   // instead of simply returning a result, ostensibly for performance reasons. But now that most
-   // of the code has been written I think, in our implementation, all we're doing is making a new
-   // SplitResult before calling this function and then throwing it into a vector rather than reusing
-   // it; making this reference passing method completely unnecessary and confusing. Let's just update
-   // it to return a SplitResult like you'd expect.
     void split_face_by_plane(const Plane &plane, const SlicerFace &face, SplitResult &result);
 } // Intersector
 

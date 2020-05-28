@@ -19,10 +19,10 @@ TEST_CASE( "[get_side_of]" ) {
     }
 }
 
-TEST_CASE( "[split_face_by_plane]" ) {
+TEST_CASE( "[split_face_by_plane]") {
     Plane plane(Vector3(0, 1, 0), 0);
 
-    SECTION( "Smoke test" ) {
+    SECTION( "Smoke test") {
         SphereMesh sphere_mesh;
         PoolVector<SlicerFace> faces = SlicerFace::faces_from_surface(sphere_mesh, 0);
         REQUIRE( faces.size() == 4224 );
@@ -33,5 +33,124 @@ TEST_CASE( "[split_face_by_plane]" ) {
         REQUIRE( result.lower_faces.size() == 2240 );
         REQUIRE( result.upper_faces.size() == 2240 );
         REQUIRE( result.intersection_points.size() == 256 );
+    }
+
+    SECTION( "points_all_on_same_side") {
+        Intersector::SplitResult result;
+        Intersector::split_face_by_plane(plane, SlicerFace(Vector3(0, 1, 0), Vector3(1, 2, 0), Vector3(2, 1, 0)), result);
+        REQUIRE( result.upper_faces.size() == 1 );
+        REQUIRE( result.lower_faces.size() == 0 );
+        REQUIRE( result.intersection_points.size() == 0 );
+        result.reset();
+
+        Intersector::split_face_by_plane(plane, SlicerFace(Vector3(0, -1, 0), Vector3(1, -2, 0), Vector3(2, -1, 0)), result);
+        REQUIRE( result.upper_faces.size() == 0 );
+        REQUIRE( result.lower_faces.size() == 1 );
+        REQUIRE( result.intersection_points.size() == 0 );
+    }
+
+    SECTION( "one_side_is_parallel") {
+        Intersector::SplitResult result;
+        Intersector::split_face_by_plane(plane, SlicerFace(Vector3(0, 0, 0), Vector3(1, 1, 0), Vector3(2, 0, 0)), result);
+        REQUIRE( result.upper_faces.size() == 1 );
+        REQUIRE( result.lower_faces.size() == 0 );
+        REQUIRE( result.intersection_points.size() == 0 );
+        result.reset();
+
+        Intersector::split_face_by_plane(plane, SlicerFace(Vector3(0, 0, 0), Vector3(1, -2, 0), Vector3(2, 0, 0)), result);
+        REQUIRE( result.upper_faces.size() == 0 );
+        REQUIRE( result.lower_faces.size() == 1 );
+        REQUIRE( result.intersection_points.size() == 0 );
+    }
+
+    SECTION( "pointed_away") {
+        Intersector::SplitResult result;
+        Intersector::split_face_by_plane(plane, SlicerFace(Vector3(0, 1, 0), Vector3(1, 0, 0), Vector3(2, 1, 0)), result);
+        REQUIRE( result.upper_faces.size() == 1 );
+        REQUIRE( result.lower_faces.size() == 0 );
+        REQUIRE( result.intersection_points.size() == 0 );
+        result.reset();
+
+        Intersector::split_face_by_plane(plane, SlicerFace(Vector3(0, -1, 0), Vector3(1, 0, 0), Vector3(2, -1, 0)), result);
+        REQUIRE( result.upper_faces.size() == 0 );
+        REQUIRE( result.lower_faces.size() == 1 );
+        REQUIRE( result.intersection_points.size() == 0 );
+    }
+
+    SECTION( "face_split_in_half") {
+        SECTION("point a is on plane") {
+            Intersector::SplitResult result;
+            Intersector::split_face_by_plane(plane, SlicerFace(Vector3(0, 0, 0), Vector3(1, 1, 0), Vector3(1, -1, 0)), result);
+            REQUIRE( result.upper_faces.size() == 1 );
+            REQUIRE( result.lower_faces.size() == 1 );
+            REQUIRE( result.intersection_points.size() == 2 );
+            REQUIRE( result.intersection_points[0] == Vector3(0, 0, 0) );
+            REQUIRE( result.intersection_points[1] == Vector3(1, 0, 0) );
+            REQUIRE( result.upper_faces[0] == SlicerFace(Vector3(0, 0, 0), Vector3(1, 1, 0), Vector3(1, 0, 0)) );
+            REQUIRE( result.lower_faces[0] == SlicerFace(Vector3(0, 0, 0), Vector3(1, 0, 0), Vector3(1, -1, 0)) );
+        }
+
+        SECTION("point b is on plane") {
+            Intersector::SplitResult result;
+            Intersector::split_face_by_plane(plane, SlicerFace(Vector3(0, -1, 0), Vector3(1, 0, 0), Vector3(0, 1, 0)), result);
+            REQUIRE( result.upper_faces.size() == 1 );
+            REQUIRE( result.lower_faces.size() == 1 );
+            REQUIRE( result.intersection_points.size() == 2 );
+            REQUIRE( result.intersection_points[0] == Vector3(1, 0, 0) );
+            REQUIRE( result.intersection_points[1] == Vector3(0, 0, 0) );
+            REQUIRE( result.upper_faces[0] == SlicerFace(Vector3(1, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, 0)) );
+            REQUIRE( result.lower_faces[0] == SlicerFace(Vector3(1, 0, 0), Vector3(0, 0, 0), Vector3(0, -1, 0)) );
+        }
+
+        SECTION("point c is on plane") {
+            Intersector::SplitResult result;
+            Intersector::split_face_by_plane(plane, SlicerFace(Vector3(0, 1, 0), Vector3(0, -1, 0), Vector3(1, 0, 0)), result);
+            REQUIRE( result.upper_faces.size() == 1 );
+            REQUIRE( result.lower_faces.size() == 1 );
+            REQUIRE( result.intersection_points.size() == 2 );
+            REQUIRE( result.intersection_points[0] == Vector3(1, 0, 0) );
+            REQUIRE( result.intersection_points[1] == Vector3(0, 0, 0) );
+            REQUIRE( result.upper_faces[0] == SlicerFace(Vector3(1, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, 0)) );
+            REQUIRE( result.lower_faces[0] == SlicerFace(Vector3(1, 0, 0), Vector3(0, 0, 0), Vector3(0, -1, 0)) );
+        }
+    }
+
+    SECTION( "full_split") {
+        SECTION("point a is lone") {
+            Intersector::SplitResult result;
+            Intersector::split_face_by_plane(plane, SlicerFace(Vector3(1, 1, 0), Vector3(2, -1, 0), Vector3(0, -1, 0)), result);
+            REQUIRE( result.upper_faces.size() == 1 );
+            REQUIRE( result.lower_faces.size() == 2 );
+            REQUIRE( result.intersection_points.size() == 2 );
+            REQUIRE( result.intersection_points[0] == Vector3(1.5, 0, 0) );
+            REQUIRE( result.intersection_points[1] == Vector3(0.5, 0, 0) );
+            REQUIRE( result.upper_faces[0] == SlicerFace(Vector3(1, 1, 0), Vector3(1.5, 0, 0), Vector3(0.5, 0, 0)) );
+            REQUIRE( result.lower_faces[0] == SlicerFace(Vector3(2, -1, 0), Vector3(0.5, 0, 0), Vector3(1.5, 0, 0)) );
+            REQUIRE( result.lower_faces[1] == SlicerFace(Vector3(0, -1, 0), Vector3(0.5, 0, 0), Vector3(2, -1, 0)) );
+        }
+        SECTION("point b is lone") {
+            Intersector::SplitResult result;
+            Intersector::split_face_by_plane(plane, SlicerFace(Vector3(0, -1, 0), Vector3(1, 1, 0), Vector3(2, -1, 0)), result);
+            REQUIRE( result.upper_faces.size() == 1 );
+            REQUIRE( result.lower_faces.size() == 2 );
+            REQUIRE( result.intersection_points.size() == 2 );
+            REQUIRE( result.intersection_points[0] == Vector3(0.5, 0, 0) );
+            REQUIRE( result.intersection_points[1] == Vector3(1.5, 0, 0) );
+            REQUIRE( result.upper_faces[0] == SlicerFace(Vector3(1, 1, 0), Vector3(1.5, 0, 0), Vector3(0.5, 0, 0)) );
+            REQUIRE( result.lower_faces[0] == SlicerFace(Vector3(2, -1, 0), Vector3(0.5, 0, 0), Vector3(1.5, 0, 0)) );
+            REQUIRE( result.lower_faces[1] == SlicerFace(Vector3(0, -1, 0), Vector3(0.5, 0, 0), Vector3(2, -1, 0)) );
+        }
+        SECTION("point c is lone") {
+            Intersector::SplitResult result;
+            Intersector::split_face_by_plane(plane, SlicerFace(Vector3(2, -1, 0), Vector3(0, -1, 0), Vector3(1, 1, 0)), result);
+            REQUIRE( result.upper_faces.size() == 1 );
+            REQUIRE( result.lower_faces.size() == 2 );
+            REQUIRE( result.intersection_points.size() == 2 );
+            REQUIRE( result.intersection_points[0] == Vector3(1.5, 0, 0) );
+            REQUIRE( result.intersection_points[1] == Vector3(0.5, 0, 0) );
+            REQUIRE( result.upper_faces[0] == SlicerFace(Vector3(1, 1, 0), Vector3(1.5, 0, 0), Vector3(0.5, 0, 0)) );
+            REQUIRE( result.lower_faces[0] == SlicerFace(Vector3(2, -1, 0), Vector3(0.5, 0, 0), Vector3(1.5, 0, 0)) );
+            REQUIRE( result.lower_faces[1] == SlicerFace(Vector3(0, -1, 0), Vector3(0.5, 0, 0), Vector3(2, -1, 0)) );
+        }
     }
 }
