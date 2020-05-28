@@ -45,6 +45,8 @@ public:
      * the cross section of a slice and creates an upper and lower mesh from them
     */
     SlicedMesh(const PoolVector<Intersector::SplitResult> &surface_splits, const PoolVector<SlicerFace> &cross_section_faces, Ref<Material> cross_section_material);
+
+    SlicedMesh() {}
 };
 
 #endif // SLICED_MESH_H

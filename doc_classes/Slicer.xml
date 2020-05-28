@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="Slicer" inherits="Spatial" version="3.2">
+	<brief_description>
+	Provides the ability to cut convex meshes along a plane.
+	</brief_description>
+	<description>
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="slice">
+			<return type="SlicedMesh">
+			</return>
+			<argument index="0" name="mesh_instance" type="Mesh">
+			</argument>
+			<argument index="1" name="mesh_transform" type="Transform">
+			</argument>
+			<argument index="2" name="position" type="Vector3">
+			</argument>
+			<argument index="3" name="normal" type="Vector3">
+			</argument>
+			<argument index="4" name="cross_section_material" type="Material" default="0">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="slice_by_plane">
+			<return type="SlicedMesh">
+			</return>
+			<argument index="0" name="mesh" type="Mesh">
+			</argument>
+			<argument index="1" name="plane" type="Plane">
+			</argument>
+			<argument index="2" name="cross_section_material" type="Material" default="0">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="slice_mesh">
+			<return type="SlicedMesh">
+			</return>
+			<argument index="0" name="mesh" type="Mesh">
+			</argument>
+			<argument index="1" name="position" type="Vector3">
+			</argument>
+			<argument index="2" name="normal" type="Vector3">
+			</argument>
+			<argument index="3" name="cross_section_material" type="Material" default="0">
+			</argument>
+			<description>
+			</description>
+		</method>
+	</methods>
+	<constants>
+	</constants>
+</class>

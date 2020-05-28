@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="SlicedMesh" inherits="Resource" version="3.2">
+	<brief_description>
+	Holds the result of a Slicer cut
+	</brief_description>
+	<description>
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+	</methods>
+	<members>
+		<member name="lower_mesh" type="Mesh" setter="set_lower_mesh" getter="get_lower_mesh">
+		</member>
+		<member name="upper_mesh" type="Mesh" setter="set_upper_mesh" getter="get_upper_mesh">
+		</member>
+	</members>
+	<constants>
+	</constants>
+</class>

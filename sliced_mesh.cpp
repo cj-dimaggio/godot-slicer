@@ -84,7 +84,6 @@ void SlicedMesh::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_lower_mesh", "mesh"), &SlicedMesh::set_lower_mesh);
     ClassDB::bind_method(D_METHOD("get_lower_mesh"), &SlicedMesh::get_lower_mesh);
 
-    // TODO - Define these as actual properties
     ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "upper_mesh", PROPERTY_HINT_RESOURCE_TYPE, "Mesh"), "set_upper_mesh", "get_upper_mesh");
     ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "lower_mesh", PROPERTY_HINT_RESOURCE_TYPE, "Mesh"), "set_lower_mesh", "get_lower_mesh");
 }
