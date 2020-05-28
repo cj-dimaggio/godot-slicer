@@ -22,18 +22,14 @@ namespace Intersector {
         PoolVector<SlicerFace> upper_faces;
         PoolVector<SlicerFace> lower_faces;
         PoolVector<Vector3> intersection_points;
-        bool was_split;
 
         void reset() {
             upper_faces.resize(0);
             lower_faces.resize(0);
             intersection_points.resize(0);
-            was_split = false;
         }
 
-        SplitResult() {
-            was_split = false;
-        }
+        SplitResult() {}
     };
 
     /**

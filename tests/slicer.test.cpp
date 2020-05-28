@@ -10,6 +10,8 @@ TEST_CASE( "[Slicer]" ) {
         sphere_mesh.instance();
         Slicer slicer;
         Ref<SlicedMesh> sliced_mesh= slicer.slice_by_plane(sphere_mesh, plane, NULL);
-        REQUIRE( sliced_mesh.is_null() == false );
+        REQUIRE_FALSE( sliced_mesh.is_null() );
+        REQUIRE_FALSE( sliced_mesh->upper_mesh.is_null() );
+        REQUIRE_FALSE( sliced_mesh->lower_mesh.is_null() );
     }
 }
