@@ -44,13 +44,16 @@ struct SlicerVector4 {
 		return coord[p_axis];
 	}
 
-
 	SlicerVector4 operator*(real_t scalar) const {
 		return SlicerVector4(x * scalar, y * scalar, z * scalar, w * scalar);
 	}
 
 	SlicerVector4 operator+(const SlicerVector4 &other) const {
 		return SlicerVector4(x + other.x, y + other.y, z + other.z, w + other.w);
+	}
+
+	bool operator==(const SlicerVector4 &other) const {
+		return x == other.x && y == other.y && z == other.z && w == other.w;
 	}
 
 	operator String() const {
@@ -63,6 +66,7 @@ struct SlicerVector4 {
 		z = p_z;
         w = p_w;
 	}
+
 	_FORCE_INLINE_ SlicerVector4() { x = y = z = w = 0; }
 };
 
