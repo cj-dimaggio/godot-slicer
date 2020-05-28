@@ -8,9 +8,15 @@
 #include "scene/resources/mesh.h"
 #include "slicer_vector4.h"
 
+/**
+ * Godot's Face3 only keeps track of a mesh's vertexes but we want to keep track
+ * of things like UV and normal mappings
+*/
 struct SlicerFace : public Face3 {
-    // For now let's just do this the memory naive way, where we allocate
-    // space for data that might not be filled
+    // Maybe it would be smarter to have these be pointers or PoolVectors,
+    // seeing as most of these may often go unused. But for simplicity's
+    // sake let's just do it the memory naive way and allocate what we
+    // might need
     bool has_normals;
     Vector3 normal[3];
 
@@ -26,17 +32,39 @@ struct SlicerFace : public Face3 {
     bool has_weights;
     SlicerVector4 weights[3];
 
-    // UVs can be either Vector2 or Vector3 but for simplicity
-    // let's only support 2 dimensions for now
+    // Documentation says that uvs can be either Vector2 or Vector3
+    // but glancing through the visual server code it seems its just
+    // handled as a Vector2 (which makes sense). For now this should
+    // be fine
     bool has_uvs;
     Vector2 uv[3];
 
     bool has_uv2s;
     Vector2 uv2[3];
 
+    /**
+     * Parse a mesh's surface into a vector of faces. This will preserve the mapping
+     * associated with each vertex and can handle both indexed and non indexed vertex
+     * arrays
+    */
     static PoolVector<SlicerFace> faces_from_surface(const Mesh &mesh, int surface_idx);
 
+    /**
+     * Creates a new face while using barycentric weights to interpolate UV, normal, etc
+     * info on to the new points.
+     */
     SlicerFace sub_face(Vector3 a, Vector3 b, Vector3 c) const;
+
+    /**
+     * Uses normal and UV information to generate tangents for each point in the face
+    */
+    void compute_tangents();
+
+    /**
+     * Calculates Barycentric coordinate weight values for the given point in respect to
+     * this face.
+    */
+    Vector3 barycentric_weights(Vector3 point) const;
 
     void set_uvs(Vector2 a, Vector2 b, Vector2 c) {
       has_uvs = true;
@@ -86,9 +114,6 @@ struct SlicerFace : public Face3 {
       uv2[1] = b;
       uv2[2] = c;
     }
-
-    void compute_tangents();
-    Vector3 barycentric_weights(Vector3 point) const;
 
     bool operator==(const Face3& other) const {
         return vertex[0] == other.vertex[0] && vertex[1] == other.vertex[1] && vertex[2] == other.vertex[2];

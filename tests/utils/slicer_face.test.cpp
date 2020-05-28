@@ -134,7 +134,48 @@ TEST_CASE( "[SlicerFace]" ) {
             }
         }
     }
+    SECTION("barycentric_weights") {
+        SlicerFace face(Vector3(0, 0, 0), Vector3(2, 0, 0), Vector3(2, 2, 0));
+        Vector3 weights = face.barycentric_weights(Vector3(1, 1, 0));
+        REQUIRE(weights == Vector3(0.5, 0, 0.5));
+    }
+
+    SECTION("compute_tangents") {
+        SlicerFace face(Vector3(0, 0, 0), Vector3(2, 0, 0), Vector3(2, 2, 0));
+
+        // Doesn't work without uvs and normals
+        face.compute_tangents();
+        REQUIRE_FALSE(face.has_tangents);
+
+        face.set_normals(Vector3(0, 0, 0), Vector3(0, 1, 0), Vector3(1, 1, 1));
+        face.set_uvs(Vector2(0, 0), Vector2(1, 0), Vector2(0, 1));
+        face.compute_tangents();
+
+        REQUIRE(face.has_tangents);
+        REQUIRE(face.tangent[0] == SlicerVector4(1, 0, 0, 1));
+        REQUIRE(face.tangent[1] == SlicerVector4(1, 0, 0, 1));
+        REQUIRE(face.tangent[2] == SlicerVector4(0.816496551, -0.408248246, -0.408248246, 1));
+    }
+
     SECTION("sub_face") {
+        SlicerFace face(Vector3(0, 0, 0), Vector3(0, 1, 0), Vector3(0, 1, 1));
+        face.set_uvs(Vector2(0, 0), Vector2(1, 0), Vector2(1, 1));
+        SlicerFace sub_face = face.sub_face(Vector3(0, 0, 0), Vector3(0, 0.5, 0), Vector3(0, 0.5, 0.5));
+        REQUIRE(sub_face.vertex[0] == Vector3(0, 0, 0));
+        REQUIRE(sub_face.vertex[1] == Vector3(0, 0.5, 0));
+        REQUIRE(sub_face.vertex[2] == Vector3(0, 0.5, 0.5));
+
+        REQUIRE(sub_face.has_uvs);
+        REQUIRE(sub_face.uv[0] == Vector2(0, 0));
+        REQUIRE(sub_face.uv[1] == Vector2(0.5, 0));
+        REQUIRE(sub_face.uv[2] == Vector2(0.5, 0.5));
+
+        REQUIRE_FALSE(sub_face.has_normals);
+        REQUIRE_FALSE(sub_face.has_tangents);
+        REQUIRE_FALSE(sub_face.has_colors);
+        REQUIRE_FALSE(sub_face.has_uv2s);
+        REQUIRE_FALSE(sub_face.has_bones);
+        REQUIRE_FALSE(sub_face.has_weights);
     }
 
     SECTION("set_uvs") {
@@ -198,5 +239,12 @@ TEST_CASE( "[SlicerFace]" ) {
         REQUIRE(face.uv2[0] == Vector2(0, 0));
         REQUIRE(face.uv2[1] == Vector2(0.5, 0.5));
         REQUIRE(face.uv2[2] == Vector2(1, 1));
+    }
+
+    SECTION("operator==") {
+        REQUIRE(SlicerFace(Vector3(0, 0, 0), Vector3(1, 1, 1), Vector3(2, 2, 2)) == SlicerFace(Vector3(0, 0, 0), Vector3(1, 1, 1), Vector3(2, 2, 2)));
+        REQUIRE_FALSE(SlicerFace(Vector3(0, 0, 0), Vector3(1, 1, 1), Vector3(2, 2, 2)) == SlicerFace(Vector3(1, 0, 0), Vector3(1, 1, 1), Vector3(2, 2, 2)));
+        REQUIRE_FALSE(SlicerFace(Vector3(0, 0, 0), Vector3(1, 1, 1), Vector3(2, 2, 2)) == SlicerFace(Vector3(0, 0, 0), Vector3(0, 1, 1), Vector3(2, 2, 2)));
+        REQUIRE_FALSE(SlicerFace(Vector3(0, 0, 0), Vector3(1, 1, 1), Vector3(2, 2, 2)) == SlicerFace(Vector3(0, 0, 0), Vector3(1, 1, 1), Vector3(0, 2, 2)));
     }
 }

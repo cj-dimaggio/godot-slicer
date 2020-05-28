@@ -2,10 +2,12 @@
 #include "face_filler.h"
 #include "triangulator.h"
 
-// Similar to Unity's https://docs.unity3d.com/ScriptReference/Vector3.OrthoNormalize.html
-// Taken from somewhat from https://www.gamedev.net/forums/topic/585184-orthonormalize-two-vectors/
-// There is also an example of Gram-Schmidt in godot's Basis::orthonormalize which does roughly
-// the same thing
+/**
+ * This function is similar to Unity's https://docs.unity3d.com/ScriptReference/Vector3.OrthoNormalize.html
+ * Godot has a Gram-Schmidt implementation in Basis::orthonormalize but it doesn't *exactly* meet our needs.
+ * Instead this is taken and modifired (very very slightly) from:
+ * https://www.gamedev.net/forums/topic/585184-orthonormalize-two-vectors/
+*/
 void ortho_normalize(Vector3 &normal, Vector3 &tangent) {
     normal.normalize();
     tangent -= normal * tangent.dot(normal);
@@ -41,7 +43,8 @@ PoolVector<SlicerFace> parse_mesh_arrays(const Mesh &mesh, int surface_idx, bool
 }
 
 PoolVector<SlicerFace> SlicerFace::faces_from_surface(const Mesh &mesh, int surface_idx) {
-    // We can really only handle meshes that are made up of triangles
+    // Slicer functionality really only makes sense in the context of a mesh composed of
+    // triangles
     if (mesh.surface_get_primitive_type(surface_idx) != Mesh::PRIMITIVE_TRIANGLES) {
         return PoolVector<SlicerFace>();
     }
@@ -56,6 +59,14 @@ PoolVector<SlicerFace> SlicerFace::faces_from_surface(const Mesh &mesh, int surf
 SlicerFace SlicerFace::sub_face(Vector3 a, Vector3 b, Vector3 c) const {
     SlicerFace new_face(a, b, c);
 
+    // It's possible that we're doing unnecessary work here considering, in our
+    // use case, 1 or 2 of the vertexes will be being reused, meaning there's
+    // no reason to compute barycentric weights for them (which will essentially
+    // just tell us "multiply by 1"). Ezy-Slice handles this smarter, by only
+    // calculating the new points but it comes at the cost of more redundent, less
+    // generalized, code (and considering we're maintaining more metadata about
+    // each vertex the problem would only be exacerbated here). *Hopefully* the
+    // computations are simple enough that it doesn't make a significant difference.
     for (int i = 0; i < 3; i++) {
         Vector3 point = new_face.vertex[i];
         Vector3 bary = barycentric_weights(point);
@@ -100,10 +111,18 @@ SlicerFace SlicerFace::sub_face(Vector3 a, Vector3 b, Vector3 c) const {
 }
 
 /**
- * Compute and set the tangents of this triangle
- * Derived From https://answers.unity.com/questions/7789/calculating-tangents-vector4.html
- * Taken almost verbatim from EZYSlice
- */
+ * Look I'll be honest with you, I'm a college drop out and not in the genius
+ * romantic Bill Gates/Steve Jobs way. The lazy, take-a-semester-in-undeclared-and-barely-show-up
+ * way. I don't know how to compute tangents, I've never heard of barycentric coordinates before.
+ * So I'll hope you'll forgive me if, in regards to this stuff below, I defer to the *actual* smart people
+ * and just resign myself to transcribing their work and commenting where appropriate without any
+ * personal programattic flourishes.
+*/
+
+/**
+ * This is taken almost line for line from Ezy-Slice, which itself derives it from
+ * https://answers.unity.com/questions/7789/calculating-tangents-vector4.html
+*/
 void SlicerFace::compute_tangents() {
     // computing tangents requires both UV and normals set
     if (!has_normals || !has_uvs) {
@@ -127,7 +146,9 @@ void SlicerFace::compute_tangents() {
     Vector3 sdir = Vector3((t2 * x1 - t1 * x2) * r, (t2 * y1 - t1 * y2) * r, (t2 * z1 - t1 * z2) * r);
     Vector3 tdir = Vector3((s1 * x2 - s2 * x1) * r, (s1 * y2 - s2 * y1) * r, (s1 * z2 - s2 * z1) * r);
 
-    // This can definitely be dried up a bit
+    // I feel like we can DRY this up a bit. But honestly all this logic is foreign to me and I wouldn't
+    // even know if I was breaking something. Maybe something worth tackling after adding a few more test
+    // cases to check for regressions
     Vector3 n1 = normal[0];
     Vector3 nt1 = sdir;
     ortho_normalize(n1, nt1);
@@ -146,10 +167,6 @@ void SlicerFace::compute_tangents() {
     set_tangents(tan_a, tan_b, tan_c);
 }
 
-/**
- * Calculate the Barycentric coordinate weight values u-v-w for Point p in respect to the provided
- * triangle. This is useful for computing new UV coordinates for arbitrary points.
- */
 Vector3 SlicerFace::barycentric_weights(Vector3 p) const {
     Vector3 a = vertex[0];
     Vector3 b = vertex[1];
