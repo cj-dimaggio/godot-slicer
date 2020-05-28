@@ -3,6 +3,11 @@
 
 #include "slicer_face.h"
 
+/**
+ * The inverse of FaceFiller, this struct is responsible for taking
+ * SlicerFaces and serializing them back into vertex arrays for Godot
+ * to read into a mesh surface
+*/
 struct SurfaceFiller {
     bool has_normals;
     bool has_tangents;
@@ -58,6 +63,7 @@ struct SurfaceFiller {
         vertexes.resize(array_length);
         vertexes_writer = vertexes.write();
 
+        // There's gotta be a less tedious way of doing this
         if (has_normals) {
             normals.resize(array_length);
             normals_writer = normals.write();
@@ -94,9 +100,21 @@ struct SurfaceFiller {
         }
     }
 
+    /**
+     * Takes data from the faces using the lookup_idx and stores it
+     * to be saved into vertex arrays (see add_to_mesh for how to attach
+     * that information into a mesh)
+    */
     _FORCE_INLINE_ void fill(int lookup_idx, int set_idx) {
-        // TODO - Can we rewrite this to work on more than one index at a time
-        // and still be readable? Would we get a performance boost?
+        // TODO - I think the function definition here with lookup_idx and set_idx
+        // is reversed from FaceFiller#fill. We should make that more consistant
+        //
+        // As mentioned in the FaceFiller comments, while having this function work
+        // on a vertex by vertex basis helps with cleaner code (especially, in this case,
+        // when it comes to reversing the order of cross section verts), its conceptually
+        // and perhaps performancely drawnback back by having to do these repeated calculations
+        // and boolean checks (I'd hope the force_inline would help with the function invocation
+        // cost but even then who knows).
         int face_idx = lookup_idx / 3;
         int idx_offset = lookup_idx % 3;
 
@@ -142,6 +160,11 @@ struct SurfaceFiller {
         }
     }
 
+    /**
+     * Adds the vertex information read from the "fill" as a new surface
+     * of the passed in mesh and sets the passed in material to the new
+     * surface
+    */
     void add_to_mesh(ArrayMesh &mesh, Ref<Material> material) {
         arrays[Mesh::ARRAY_VERTEX] = vertexes;
 
