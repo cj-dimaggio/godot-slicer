@@ -4,7 +4,7 @@
 
 /**
  * Represents a 3D Vertex which has been mapped onto a 2D surface
- * and is mainly used in MonotoneChain to triangulate a set of vertices
+ * and is used in monotone_chain to triangulate a set of vertices
  * against a flat plane.
  */
 struct Mapped2D {
@@ -39,9 +39,10 @@ namespace Triangulator {
     
     // Godot has a QuickHull function (along with VHACD bindings which I'm sure has all kind of crazy smart stuff in it)
     // But as this is primarily a learning exercise (and because monotone chain has a slightly different time complexity
-    // along with the need to support uv mappings and such) let's try to implement this ourselves
+    // and our need to support uv mappings and such) let's try to implement this ourselves (or, more accurately, copy
+    // it over from Ezy-Slice)
     PoolVector<SlicerFace> monotone_chain(const PoolVector<Vector3> &interception_points, Vector3 plane_normal) {
-        // So we'll be using the monotone_chain algorithm to try to get a convex hull from our assortment of
+        // We'll be using the monotone_chain algorithm to try to get a convex hull from our assortment of
         // interception_points along our plane
 
         int count = interception_points.size();
@@ -51,30 +52,30 @@ namespace Triangulator {
             return result;
         }
 
-        // first, we map from 3D points into a 2D plane represented by the provided normal
+        // First we map from 3D points into a 2D plane represented by the normal we used to cut our mesh
         Vector3 u = plane_normal.cross(Vector3( 0, 1, 0 )).normalized();
         if (u == Vector3(0, 0, 0)) {
             u = plane_normal.cross(Vector3(0, 0, -1)).normalized();
         }
         Vector3 v = u.cross(plane_normal);
 
-        // generate an array of mapped values
+        // Generate an array of mapped values
         Vector<Mapped2D> mapped;
         mapped.resize(count);
 
-        // these values will be used to generate new UV coordinates later on
+        // These values will be used to generate new UV coordinates later on
         real_t max_div_x = std::numeric_limits<real_t>::min() ;
         real_t max_div_y = std::numeric_limits<real_t>::min() ;
         real_t min_div_x = std::numeric_limits<real_t>::max() ;
         real_t min_div_y = std::numeric_limits<real_t>::max() ;
 
-        // map the 3D vertices into the 2D mapped values
+        // Map the 3D vertices into the 2D mapped values
         for (int i = 0; i < count; i++) {
             Vector3 vert_to_add = interception_points[i];
             Mapped2D new_mapped_value = Mapped2D(vert_to_add, u, v);
             Vector2 map_val = new_mapped_value.mapped;
 
-            // grab our maximal values so we can map UV's in a proper range
+            // Grab our maximal values so we can map UV's in a proper range
             max_div_x = std::max(max_div_x, map_val.x);
             max_div_y = std::max(max_div_y, map_val.y);
             min_div_x = std::min(min_div_x, map_val.x);
@@ -83,17 +84,17 @@ namespace Triangulator {
             mapped.set(i, new_mapped_value);
         }
 
-        // sort our newly generated array values
+        // Sort our newly generated array values
         mapped.sort_custom<Mapped2D::Comparator>();
 
-        // our final hull mappings will end up in here
+        // Our final hull mappings will end up in here
         PoolVector<Mapped2D> hulls;
         hulls.resize(count + 1);
         PoolVector<Mapped2D>::Write hulls_writer = hulls.write();
 
         int k = 0;
 
-        // build the lower hull of the chain
+        // Build the lower hull of the chain
         for (int i = 0; i < count; i++) {
             while (k >= 2) {
                 Vector2 mA = hulls[k - 2].mapped;
@@ -110,7 +111,7 @@ namespace Triangulator {
             hulls_writer[k++] = mapped[i];
         }
 
-        // build the upper hull of the chain
+        // Build the upper hull of the chain
         for (int i = count - 2, t = k + 1; i >= 0; i--) {
             while (k >= t) {
                 Vector2 mA = hulls[k - 2].mapped;
@@ -127,17 +128,16 @@ namespace Triangulator {
             hulls_writer[k++] = mapped[i];
         }
 
-        // finally we can build our mesh, generate all the variables
+        // Finally we can build our mesh. Generate all the variables
         // and fill them up
         int vert_count = k - 1;
         int tri_count = (vert_count - 2) * 3;
 
-        // this should not happen, but here just in case
+        // This should not happen, but here just in case
         if (vert_count < 3) {
             return result;
         }
 
-        // ensure List does not dynamically grow, performing copy ops each time!
         result.resize(tri_count / 3);
         PoolVector<SlicerFace>::Write result_writer = result.write();
 
@@ -146,14 +146,14 @@ namespace Triangulator {
 
         int index_count = 1;
 
-        // generate both the vertices and uv's in this loop
+        // Generate both the vertices and uv's in this loop
         for (int i = 0; i < tri_count; i += 3) {
-            // the Vertices in our triangle
+            // The vertices in our triangle
             Mapped2D pos_a = hulls[0];
             Mapped2D pos_b = hulls[index_count];
             Mapped2D pos_c = hulls[index_count + 1];
 
-            // generate UV Maps
+            // Generate UV Maps
             Vector2 uv_a = pos_a.mapped;
             Vector2 uv_b = pos_b.mapped;
             Vector2 uv_c = pos_c.mapped;
@@ -169,10 +169,11 @@ namespace Triangulator {
 
             SlicerFace new_face = SlicerFace(pos_a.original, pos_b.original, pos_c.original);
 
-            // TODO - Add support for texture regions
+            // TODO - Ezy-Slice support the ability to map these uv values to a specific region
+            // of the texture for atlasing.
             new_face.set_uvs(uv_a, uv_b, uv_c);
 
-            // the normals is the same for all vertices since the final mesh is completely flat
+            // The normals is the same for all vertices since the final mesh is completely flat
             new_face.set_normals(plane_normal, plane_normal, plane_normal);
             new_face.compute_tangents();
 
