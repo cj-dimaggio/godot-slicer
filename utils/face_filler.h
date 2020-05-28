@@ -3,11 +3,16 @@
 
 #include "slicer_face.h"
 
-// Mimic logic in TriangleMesh#Create
+// This just mimics logic found in TriangleMesh#Create
 _FORCE_INLINE_ Vector3 snap_vertex(Vector3 v) {
     return v.snapped(Vector3(0.0001, 0.0001, 0.0001));
 }
 
+/**
+ * Responsible for serializing data from vertex arrays, as they are
+ * given from the visual server, into an array of SlicerFaces while
+ * maintaining info about things such as normals and uvs etc.
+*/
 struct FaceFiller {
     PoolVector<SlicerFace>::Write faces_writer;
     PoolVector<Vector3>::Read vertices_reader;
@@ -33,6 +38,7 @@ struct FaceFiller {
     bool has_uv2s;
     PoolVector<Vector2>::Read uv2s_reader;
 
+    // Yuck. What an eye sore this constructor is
     FaceFiller(PoolVector<SlicerFace> &faces, const Array &surface_arrays) {
         faces_writer = faces.write();
 
@@ -68,9 +74,19 @@ struct FaceFiller {
         has_uv2s = uv2s.size() > 0 && uv2s.size() == vertices.size();
     }
 
+    /**
+     * Takes data from the vertex array using the lookup_idx and puts it into
+     * our face vector using set_idx
+    */ 
     _FORCE_INLINE_ void fill(int set_idx, int lookup_idx) {
-        // TODO - Can we rewrite this to work on more than one index at a time
-        // and still be readable? Would we get a performance boost?
+        // Having this function work vertex by vertex makes the code a bit nicer,
+        // especially with having to support indexed and non-indexed vertexes,
+        // but just performance-wise I hate it. There's no reason, besides uglier
+        // and more complicated code, why we can't be doing these has_* checks on
+        // a per face basis. Maybe even a per mesh basis. Admitidly it'll probably
+        // all come out in the wash, but it bothers me conceptually. Let's put in
+        // a TODO about it. Maybe there's something incredibly clever we can do with
+        // macros that *won't* make me want to tear out what's left of my hair.
         int face_idx = set_idx / 3;
         int set_offset = set_idx % 3;
 

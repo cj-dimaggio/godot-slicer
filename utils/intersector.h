@@ -3,8 +3,12 @@
 
 #include "slicer_face.h"
 
+/**
+ * Contains functions related to finding intersection points
+ * on SlicerFaces
+*/
 namespace Intersector {
-    // Note that this is slightly different than Face3::Side
+    // Note that this is slightly different than Face3::Side,
     // as it refers to the position of a single Vector3 rather
     // than a face
     enum SideOfPlane {
@@ -32,14 +36,21 @@ namespace Intersector {
         }
     };
 
-    // Similar, in spirit, to Face3::get_side_of but focused on a single
-    // point rather than a face. Plane has a `is_point_over` method but
-    // this doesn't give us enough information to know if the point is
-    // actually laying on the plane without having to do an additional
-    // calculation in Plane::has_point
+    /**
+     * Calculates which side of the passed in plane the given point falls on
+    */
     SideOfPlane get_side_of(const Plane &plane, Vector3 point);
 
-    // Face3 has its own split_by_plane but we want to make a few custom modifications
+    /**
+     * Performs an intersection on the given face using the passed in plane and stores
+     * the result in the result param.
+    */
+   // TODO - We followed Ezy-Slice's lead with making result a passed in a reference we modify.
+   // instead of simply returning a result, ostensibly for performance reasons. But now that most
+   // of the code has been written I think, in our implementation, all we're doing is making a new
+   // SplitResult before calling this function and then throwing it into a vector rather than reusing
+   // it; making this reference passing method completely unnecessary and confusing. Let's just update
+   // it to return a SplitResult like you'd expect.
     void split_face_by_plane(const Plane &plane, const SlicerFace &face, SplitResult &result);
 } // Intersector
 

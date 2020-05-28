@@ -1,6 +1,13 @@
 #include "intersector.h"
 
 namespace Intersector {
+    /**
+     * FaceIntersectInfo is one place where we, superficially, deviate from the original
+     * Ezy-Slice implementation. The idea is to generalize the plane-face relationship as
+     * much as possible to try to reduce long series of conditionals with largely similar
+     * blocks for code and hopefully make the actual process that's happening a bit easier
+     * to grok.
+    */
     struct FaceIntersectInfo {
         SideOfPlane sides[3];
 
@@ -38,6 +45,13 @@ namespace Intersector {
         }
     };
 
+    // Similar to Face3::get_side_of but focused on a single point
+    // rather than an entire face. Plane has a `is_point_over` method but
+    // this doesn't give us enough information to know if the point is
+    // actually laying on the plane without having to do an additional
+    // calculation in Plane::has_point. The logic is so straightforward
+    // I don't think we need to feel too bad about reimplementing to meet
+    // our exact needs
     SideOfPlane get_side_of(const Plane &plane, Vector3 point) {
         real_t dist = plane.distance_to(point);
         if (dist > CMP_EPSILON) {
@@ -67,7 +81,9 @@ namespace Intersector {
     }
 
     bool points_all_on_same_side(const SlicerFace &face, FaceIntersectInfo &info, SplitResult &result) {
-        // TODO - Updating split result int this case is a divergence from what EZYSlicer does. Does it work?
+        // This is actually a bit of a divergence from Ezy-Slice, where instead they just return and then handle
+        // this case in a different loop. With the way we have things setup though I think we can just handle them
+        // while we're here with all of already deduced info
         if (info.num_of_points_above == 3) {
             result.upper_faces.push_back(face);
             return true;
@@ -85,8 +101,8 @@ namespace Intersector {
     }
 
     bool one_side_is_parallel(const SlicerFace &face, FaceIntersectInfo &info, SplitResult &result) {
-        // detect cases where two points lay straight on the plane, meaning
-        // that the plane is actually parallel with one of the edges of the triangle
+        // if two points are actually lying *on* the plane then we know there won't be any real intersection,
+        // we can just reuse the facd as is after determining if the remaining point is above or below the plane
         if (info.num_of_points_on == 2) {
             if (info.num_of_points_above == 1) {
                 result.upper_faces.push_back(face);
@@ -100,7 +116,8 @@ namespace Intersector {
     }
 
     bool pointed_away(const SlicerFace &face, FaceIntersectInfo &info, SplitResult &result) {
-        // detect cases where one point is on the plane and the other two are on the same side
+        // Similar to one_side_is_parallel except in this case only one point is on the plane
+        // and the other 2 are on the same side
         if (info.num_of_points_on == 1) {
             if (info.num_of_points_above == 2) {
                 result.upper_faces.push_back(face);
@@ -115,12 +132,12 @@ namespace Intersector {
     }
 
     bool face_split_in_half(const Plane &plane, const SlicerFace &face, FaceIntersectInfo &info, SplitResult &result) {
-        // check the cases where the points of the triangle actually lie on the plane itself
-        // in these cases, there is only going to be 2 triangles, one for the upper HULL and
-        // the other on the lower HULL
+        // If one point is lying on the plane and the other 2 points are on either side all we really need to do is split
+        // the triangle in half (or, more accurately, in two)
         if (info.num_of_points_on == 1) {
             Vector3 on = info.points_on[0];
-            // We know that there is one on different sides or else it would have been caught in `pointed_away`
+
+            // We know that there is one on either side or else it would have been caught in `pointed_away`
             ERR_FAIL_COND_V(info.num_of_points_above == 1 && info.num_of_points_below == 1, false);
             Vector3 above = info.points_above[0];
             Vector3 below = info.points_below[0];
@@ -140,7 +157,9 @@ namespace Intersector {
             SlicerFace upper_face;
             SlicerFace lower_face;
 
-            // We need to make sure we're placing our points clockwise (There's gotta be a better way to generalize this)
+            // We need to make sure, for any new triangle we're generating, that the points are created clockwise so that
+            // the face renders correctly. Sadly our FaceIntersectInfo helper fails us here and we need to fall back on
+            // tedious conditionals to manually handle this logic. I'd really love a way of reliably generalizing this
             if (on == a) {
                 upper_face = face.sub_face(a, b, intersect_point);
                 lower_face = face.sub_face(a, intersect_point, c);
@@ -174,7 +193,7 @@ namespace Intersector {
         Vector3 c = face.vertex[2];
 
         // If we've gotten to this point then we can be able to confidently say that two points lie on one side
-        // and one point lies on the other. We just need to fill out the values below correctly;
+        // and one point lies on the other. We just need to find out which is which;
         Vector3 on_same_side_1;
         Vector3 on_same_side_2;
         Vector3 on_lone_side;
@@ -202,7 +221,9 @@ namespace Intersector {
         SlicerFace same_tri_1;
         SlicerFace same_tri_2;
 
-        // We need to make sure we're placing our points clockwise (There's gotta be a better way to generalize this)
+        // As mentioned in face_split_in_half, we need to make sure that we add our points
+        // clockwise or else it won't render correctly. I'd love some way of generalizing this
+        // to be less redundent
         if (on_lone_side == a) {
             lone_tri = face.sub_face(a, intersection_point_1,intersection_point_2);
             same_tri_1 = face.sub_face(b, intersection_point_2, intersection_point_1);
@@ -232,11 +253,12 @@ namespace Intersector {
         result.intersection_points.push_back(intersection_point_2);
     }
 
+    // Face3 has its own split_by_plane but we need to make a few modifications to support
+    // all the data that SlicerFace is responsible for holding. Also Ezy-Slice uses a few clever
+    // tricks to handle edge cases
     void split_face_by_plane(const Plane &plane, const SlicerFace &face, SplitResult &result) {
         FaceIntersectInfo info(plane, face);
 
-        // we cannot intersect if the face's points all fall on the same side
-        // of the plane.
         if (points_all_on_same_side(face, info, result)) {
             return;
         }
@@ -253,6 +275,7 @@ namespace Intersector {
             return;
         }
 
+        // We've tried all of our clever edge cases, time to do a full intersection test
         full_split(plane, face, info, result);
     }
 }

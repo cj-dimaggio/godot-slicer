@@ -67,6 +67,7 @@ SlicerFace SlicerFace::sub_face(Vector3 a, Vector3 b, Vector3 c) const {
     // generalized, code (and considering we're maintaining more metadata about
     // each vertex the problem would only be exacerbated here). *Hopefully* the
     // computations are simple enough that it doesn't make a significant difference.
+    // Maybe consider it a TODO
     for (int i = 0; i < 3; i++) {
         Vector3 point = new_face.vertex[i];
         Vector3 bary = barycentric_weights(point);
