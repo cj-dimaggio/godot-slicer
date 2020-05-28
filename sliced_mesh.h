@@ -5,6 +5,12 @@
 #include "scene/resources/mesh.h"
 #include "utils/intersector.h"
 
+/**
+ * A simple container for the results of a mesh slice.
+ * upper_mesh contains the part of the mesh that was above
+ * the plane normal and lower_mesh contains the part that was
+ * below
+*/
 class SlicedMesh : public Resource {
     GDCLASS(SlicedMesh, Resource);
 
@@ -34,6 +40,10 @@ public:
         lower_mesh = _lower_mesh;
     }
 
+    /**
+     * Transforms a vector of split results and a vector of faces representing
+     * the cross section of a slice and creates an upper and lower mesh from them
+    */
     SlicedMesh(const PoolVector<Intersector::SplitResult> &surface_splits, const PoolVector<SlicerFace> &cross_section_faces, Ref<Material> cross_section_material);
 };
 

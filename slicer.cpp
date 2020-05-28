@@ -4,6 +4,7 @@
 #include "utils/triangulator.h"
 
 Ref<SlicedMesh> Slicer::slice_by_plane(const Ref<Mesh> mesh, const Plane plane, const Ref<Material> cross_section_material) {
+    // TODO - This function is a little heavy. Maybe we should break it up
     if (mesh.is_null()) {
         return Ref<SlicedMesh>();
     }
@@ -12,7 +13,7 @@ Ref<SlicedMesh> Slicer::slice_by_plane(const Ref<Mesh> mesh, const Plane plane, 
     split_results.resize(mesh->get_surface_count());
     PoolVector<Intersector::SplitResult>::Write split_results_writer = split_results.write();
 
-    // Intersection points are shared across all surfaces
+    // The upper and lower meshes will share the same intersection points
     PoolVector<Vector3> intersection_points;
 
     for (int i = 0; i < mesh->get_surface_count(); i++) {
@@ -35,13 +36,13 @@ Ref<SlicedMesh> Slicer::slice_by_plane(const Ref<Mesh> mesh, const Plane plane, 
         ip_writer.release();
         results.intersection_points.resize(0);
 
-        // Save the updated result back into the array (PoolVector doesn't seem to have a non
-        // const index operator)
         split_results_writer[i] = results;
     }
 
 
-    // If no intersection has occurred then just return
+    // If no intersection has occurred then there's really nothing for us to do
+    // but still, is this the expected behavior? Would it be better to return an
+    // actual SliceMesh with either the upper_mesh or lower_mesh null?
     if (intersection_points.size() == 0) {
         return Ref<SlicedMesh>();
     }
@@ -58,6 +59,7 @@ Ref<SlicedMesh> Slicer::slice_mesh(const Ref<Mesh> mesh, const Vector3 position,
 }
 
 Ref<SlicedMesh> Slicer::slice(const Ref<Mesh> mesh, const Transform mesh_transform, const Vector3 position, const Vector3 normal, const Ref<Material> cross_section_material) {
+    // We need to reorient the plane so that it will correctly slice the mesh whose vertexes are based on the origin
     Vector3 origin = position - mesh_transform.origin;
     real_t dist = normal.dot(origin);
     Vector3 adjusted_normal = mesh_transform.basis.xform_inv(normal);
@@ -69,7 +71,4 @@ void Slicer::_bind_methods() {
     ClassDB::bind_method(D_METHOD("slice_by_plane", "mesh", "plane", "cross_section_material"), &Slicer::slice_by_plane, Variant::NIL);
     ClassDB::bind_method(D_METHOD("slice_mesh", "mesh", "position", "normal", "cross_section_material"), &Slicer::slice_mesh, Variant::NIL);
     ClassDB::bind_method(D_METHOD("slice", "mesh_instance", "mesh_transform", "position", "normal", "cross_section_material"), &Slicer::slice, Variant::NIL);
-}
-
-Slicer::Slicer() {
 }
