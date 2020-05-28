@@ -12,10 +12,10 @@ Import('env')
 def run_target(target, source, env):
     return subprocess.call(target[0].abspath)
 
-# Our unit tests make use of the OS_Server class (which is Unix only)
-# for bootstraping the Godot environment before tests. This is essentially
-# just copy-and-pasted from `platform/server/SCsub` and runs a high risk of
-# getting out of sync.
+# Our unit tests make use of the OS_Server class (which is unfortunately Unix only)
+# for bootstraping the Godot environment before running tests. This is essentially
+# just copy-and-pasted from `platform/server/SCsub` and for that reason runs a high
+# risk of falling out of sync.
 def os_server_sources():
     common_server = [\
         "#platform/server/os_server.cpp",\
@@ -38,9 +38,9 @@ def os_server_sources():
 
     return common_server
 
-# Godot does not currently have much in the way of unit testing the engine
-# code itself and this might be an interesting opportunity what that process
-# might look like to those it behooves.
+# With the exception of a few one off test programs, Godot does not currently have
+# much in the way of unit testing the engine code itself and this might be an
+# interesting opportunity to see what that process might look like, for those it behooves.
 #
 # We use Catch2 (https://github.com/catchorg/Catch2) as our test framework.
 # This function simply configures a new executable build for a binary that
@@ -54,12 +54,13 @@ def configure_unit_tests():
 
     test_program = None
 
-    # Ideally, rebuilding our test suite would be as quick as possible; but as
-    # mentioned above, linking all of Godot's main sources and libraries can
-    # take a while even if you're only compiling one or two files. To help
-    # mitigate that let's try to separate the building of the Catch2 main
-    # function (which should not be changing very often) and the building of
-    # the test suite itself (which we imagine _will_ be changing often).
+    # As tests usually need to be modified and tweaked iteratively, a quick
+    # build phase is hugely beneficial. But, as mentioned before,
+    # the linking all of Godot's main sources and libraries can take a long time
+    # even if only one or two files are actually being compiled. To help mitigate
+    # this let's try to separate the building of the Catch2 main function
+    # (which should not be touched very often) and the building of the test suite
+    # itself (which we imagine _will_ be changing often).
     if ARGUMENTS.get('slicer_shared', 'no') == 'yes':
         test_env = env.Clone()
         test_env.Append(CCFLAGS=['-fPIC'])
@@ -79,14 +80,20 @@ def configure_unit_tests():
             # be the equivelant as the above `force_load`
             env.Append(LINKFLAGS=['-Wl,--whole-archive', test_lib[0].abspath, '-Wl,--no-whole-archive'])
 
-        # TODO - Can we put this into the program function args somehow so we're not affecting
-        # regular build?
+        # TODO - Updating the main SCons environment with our test build is not smart. It actually
+        # affectively breaks the *real* godot executable build if you build it with `slicer_shared`
+        # and `slicer_tests` both set. But the issue is that the `env` environment still has some required
+        # libraries that will be added after this SCSub is run (see the SConstruct file). If we clone the
+        # environment here (or set the LIBS arg in the env.Program call itself) we won't get those libraries
+        # when the program tries to build. Basically, we need to keep the build referenced to the `env` object
+        # so that it will have *all* the configuration by the time it builds
         env.Append(LIBS=[test_lib])
 
         test_program = env.Program('#bin/test-slicer', test_main_files)
     else:
         # As you can tell, there's a bit of finickiness with getting a shared library build
-        # working, so we add a more straightforward static build option just in case
+        # working, so we add a more straightforward static build option just in case for those
+        # who don't want to deal with it
         test_program = env.Program('#bin/test-slicer', test_main_files + test_files)
 
     env.Alias('slicer-test', [test_program])
