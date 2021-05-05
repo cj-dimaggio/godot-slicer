@@ -25,7 +25,6 @@ sources = [
 use_shared_libs = ARGUMENTS.get('slicer_shared', 'no') == 'yes'
 
 module_env = env.Clone()
-module_env.Append(CXXFLAGS=['-std=c++11'])
 
 # Build the plugin as a shared library for faster builds
 def configure_shared_lib_build():
